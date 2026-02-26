@@ -1,14 +1,15 @@
 namespace UserAPI.API.Controllers;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using UserAPI.Core.Application.DTOs;
 using UserAPI.Core.Application.Interfaces;
 
 /// <summary>
-/// Authentication controller for user login and token generation
+/// Authentication controller for user login and token generation.
+/// Exception handling is delegated to ExceptionHandlingMiddleware.
 /// </summary>
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [ApiController]
 public class AuthController : ControllerBase
 {
@@ -25,30 +26,19 @@ public class AuthController : ControllerBase
     /// Authenticate user and get JWT token
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginDto loginDto)
     {
-        try
-        {
-            _logger.LogInformation("Login attempt for email: {Email}", loginDto.Email);
+        _logger.LogInformation("Login attempt for email: {Email}", loginDto.Email);
 
-            var response = await _authenticationService.AuthenticateAsync(loginDto);
+        var response = await _authenticationService.AuthenticateAsync(loginDto);
 
-            _logger.LogInformation("Successful login for user: {UserId}", response.User.Id);
+        _logger.LogInformation("Successful login for user: {UserId}", response.User.Id);
 
-            return Ok(response);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning("Failed login attempt: {Message}", ex.Message);
-            return Unauthorized(new { message = "Invalid email or password" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during login");
-            return BadRequest(new { message = "An error occurred during login" });
-        }
+        return Ok(response);
     }
 }

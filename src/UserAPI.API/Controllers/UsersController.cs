@@ -6,9 +6,10 @@ using UserAPI.Core.Application.DTOs;
 using UserAPI.Core.Application.Interfaces;
 
 /// <summary>
-/// Users controller for managing user operations with JWT authentication
+/// Users controller for managing user operations with JWT authentication.
+/// Exception handling is delegated to ExceptionHandlingMiddleware.
 /// </summary>
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [ApiController]
 [Authorize]
 public class UsersController : ControllerBase
@@ -32,26 +33,13 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<UserResponseDto>> Create([FromBody] CreateUserDto createUserDto)
     {
-        try
-        {
-            _logger.LogInformation("Creating user with email: {Email}", createUserDto.Email);
+        _logger.LogInformation("Creating user with email: {Email}", createUserDto.Email);
 
-            var user = await _userService.CreateAsync(createUserDto);
+        var user = await _userService.CreateAsync(createUserDto);
 
-            _logger.LogInformation("User created successfully: {UserId}", user.Id);
+        _logger.LogInformation("User created successfully: {UserId}", user.Id);
 
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning("Failed to create user: {Message}", ex.Message);
-            return Conflict(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating user");
-            return BadRequest(new { message = "An error occurred while creating the user" });
-        }
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
     /// <summary>
@@ -62,47 +50,45 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponseDto>> GetById(Guid id)
     {
-        try
+        _logger.LogInformation("Getting user by ID: {UserId}", id);
+
+        var user = await _userService.GetByIdAsync(id);
+
+        if (user == null)
         {
-            _logger.LogInformation("Getting user by ID: {UserId}", id);
-
-            var user = await _userService.GetByIdAsync(id);
-
-            if (user == null)
-            {
-                _logger.LogWarning("User not found: {UserId}", id);
-                return NotFound(new { message = "User not found" });
-            }
-
-            return Ok(user);
+            _logger.LogWarning("User not found: {UserId}", id);
+            return NotFound(new { message = "User not found" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving user");
-            return BadRequest(new { message = "An error occurred while retrieving the user" });
-        }
+
+        return Ok(user);
     }
 
     /// <summary>
-    /// Get all users
+    /// Get all users (non-paginated, kept for backward compatibility)
     /// </summary>
-    [HttpGet]
+    [HttpGet("all")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAll()
     {
-        try
-        {
-            _logger.LogInformation("Getting all users");
+        _logger.LogInformation("Getting all users");
 
-            var users = await _userService.GetAllAsync();
+        var users = await _userService.GetAllAsync();
 
-            return Ok(users);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving users");
-            return BadRequest(new { message = "An error occurred while retrieving users" });
-        }
+        return Ok(users);
+    }
+
+    /// <summary>
+    /// Get users with pagination
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResponseDto<UserResponseDto>>> GetPaginated([FromQuery] PaginationQueryDto paginationQuery)
+    {
+        _logger.LogInformation("Getting users page {Page} with size {PageSize}", paginationQuery.Page, paginationQuery.PageSize);
+
+        var result = await _userService.GetPaginatedAsync(paginationQuery);
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -114,51 +100,35 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UserResponseDto>> Update(Guid id, [FromBody] UpdateUserDto updateUserDto)
     {
-        try
+        _logger.LogInformation("Updating user: {UserId}", id);
+
+        var user = await _userService.UpdateAsync(id, updateUserDto);
+
+        if (user == null)
         {
-            _logger.LogInformation("Updating user: {UserId}", id);
-
-            var user = await _userService.UpdateAsync(id, updateUserDto);
-
-            if (user == null)
-            {
-                _logger.LogWarning("User not found for update: {UserId}", id);
-                return NotFound(new { message = "User not found" });
-            }
-
-            _logger.LogInformation("User updated successfully: {UserId}", id);
-
-            return Ok(user);
+            _logger.LogWarning("User not found for update: {UserId}", id);
+            return NotFound(new { message = "User not found" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating user");
-            return BadRequest(new { message = "An error occurred while updating the user" });
-        }
+
+        _logger.LogInformation("User updated successfully: {UserId}", id);
+
+        return Ok(user);
     }
 
     /// <summary>
-    /// Delete user
+    /// Delete user (soft delete)
     /// </summary>
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id)
     {
-        try
-        {
-            _logger.LogInformation("Deleting user: {UserId}", id);
+        _logger.LogInformation("Deleting user: {UserId}", id);
 
-            await _userService.DeleteAsync(id);
+        await _userService.DeleteAsync(id);
 
-            _logger.LogInformation("User deleted successfully: {UserId}", id);
+        _logger.LogInformation("User deleted successfully: {UserId}", id);
 
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting user");
-            return BadRequest(new { message = "An error occurred while deleting the user" });
-        }
+        return NoContent();
     }
 }

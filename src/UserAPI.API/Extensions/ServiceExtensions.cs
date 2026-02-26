@@ -27,14 +27,15 @@ public static class ServiceExtensions
         // Register utility services
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 
-        // Register JWT token service
+        // Register JWT token service with config-driven Issuer/Audience
         var secretKey = configuration["Jwt:SecretKey"]
             ?? throw new InvalidOperationException("JWT secret key not found in configuration");
-        
+        var issuer = configuration["Jwt:Issuer"] ?? "UserAPI";
+        var audience = configuration["Jwt:Audience"] ?? "UserAPIClient";
         var expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
-        services.AddScoped<IJwtTokenService>(_ => new JwtTokenService(secretKey, expirationMinutes));
+        services.AddScoped<IJwtTokenService>(_ => new JwtTokenService(secretKey, issuer, audience, expirationMinutes));
 
-        // Register validators
+        // Register validators and wire up automatic validation pipeline
         services.AddValidatorsFromAssemblyContaining(typeof(CreateUserValidator), ServiceLifetime.Scoped);
 
         return services;

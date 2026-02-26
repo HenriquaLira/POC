@@ -2,6 +2,7 @@ namespace UserAPI.Core.Application.Services;
 
 using UserAPI.Core.Application.DTOs;
 using UserAPI.Core.Application.Interfaces;
+using UserAPI.Core.Domain.Exceptions;
 
 /// <summary>
 /// Authentication service implementing SRP and DIP
@@ -32,7 +33,7 @@ public class AuthenticationService : IAuthenticationService
 
         var user = await _userRepository.GetByEmailAsync(loginDto.Email);
         if (user == null || !_passwordHasher.Verify(loginDto.Password, user.PasswordHash))
-            throw new InvalidOperationException("Invalid email or password");
+            throw new AuthenticationException();
 
         var token = _jwtTokenService.GenerateToken(user.Id, user.Email);
 
