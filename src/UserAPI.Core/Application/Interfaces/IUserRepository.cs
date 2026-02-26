@@ -28,6 +28,11 @@ public interface IUserRepository
     Task<IEnumerable<User>> GetAllAsync();
 
     /// <summary>
+    /// Get users with pagination
+    /// </summary>
+    Task<(IEnumerable<User> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize);
+
+    /// <summary>
     /// Update an existing user
     /// </summary>
     Task<User> UpdateAsync(User user);

@@ -6,6 +6,7 @@ using UserAPI.Core.Application.DTOs;
 using UserAPI.Core.Application.Interfaces;
 using UserAPI.Core.Application.Services;
 using UserAPI.Core.Domain.Entities;
+using UserAPI.Core.Domain.Exceptions;
 
 /// <summary>
 /// Unit tests for AuthenticationService
@@ -42,10 +43,7 @@ public class AuthenticationServiceTests
             Password = "SecurePass123"
         };
 
-        var user = new User(loginDto.Email, "John", "Doe", "hashed_password")
-        {
-            Id = Guid.NewGuid()
-        };
+        var user = new User(loginDto.Email, "John", "Doe", "hashed_password");
 
         var token = "jwt_token_here";
 
@@ -75,7 +73,7 @@ public class AuthenticationServiceTests
     }
 
     [Test]
-    public void AuthenticateAsync_WithInvalidPassword_ThrowsInvalidOperationException()
+    public void AuthenticateAsync_WithInvalidPassword_ThrowsAuthenticationException()
     {
         // Arrange
         var loginDto = new LoginDto
@@ -84,10 +82,7 @@ public class AuthenticationServiceTests
             Password = "WrongPassword"
         };
 
-        var user = new User(loginDto.Email, "John", "Doe", "hashed_password")
-        {
-            Id = Guid.NewGuid()
-        };
+        var user = new User(loginDto.Email, "John", "Doe", "hashed_password");
 
         _mockUserRepository
             .Setup(x => x.GetByEmailAsync(loginDto.Email))
@@ -98,15 +93,15 @@ public class AuthenticationServiceTests
             .Returns(false);
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = Assert.ThrowsAsync<AuthenticationException>(
             () => _authenticationService.AuthenticateAsync(loginDto)
         );
 
-        Assert.IsTrue(ex.Message.Contains("Invalid email or password"));
+        Assert.That(ex!.Message, Does.Contain("Invalid email or password"));
     }
 
     [Test]
-    public void AuthenticateAsync_WithNonExistentEmail_ThrowsInvalidOperationException()
+    public void AuthenticateAsync_WithNonExistentEmail_ThrowsAuthenticationException()
     {
         // Arrange
         var loginDto = new LoginDto
@@ -120,10 +115,10 @@ public class AuthenticationServiceTests
             .ReturnsAsync((User?)null);
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = Assert.ThrowsAsync<AuthenticationException>(
             () => _authenticationService.AuthenticateAsync(loginDto)
         );
 
-        Assert.IsTrue(ex.Message.Contains("Invalid email or password"));
+        Assert.That(ex!.Message, Does.Contain("Invalid email or password"));
     }
 }

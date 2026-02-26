@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using UserAPI.API.Extensions;
 using UserAPI.API.Middlewares;
@@ -7,7 +8,10 @@ using UserAPI.Core.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<UserAPI.API.Filters.ValidationFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -46,18 +50,45 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 // Add core services
 builder.Services.AddCoreServices(builder.Configuration);
 
-// Add CORS
+// Add health checks
+builder.Services.AddHealthChecks();
+
+// Add CORS with configurable allowed origins
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "https://localhost:7245", "http://localhost:5245" };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("DefaultPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
+// Add rate limiting for auth endpoints
+var permitLimit = builder.Configuration.GetValue("RateLimiting:PermitLimit", 10);
+var windowInSeconds = builder.Configuration.GetValue("RateLimiting:WindowInSeconds", 60);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = permitLimit;
+        limiterOptions.Window = TimeSpan.FromSeconds(windowInSeconds);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 var app = builder.Build();
+
+// Exception handling middleware MUST be registered first to catch all exceptions
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
@@ -66,20 +97,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Apply migrations
-using (var scope = app.Services.CreateScope())
+// Apply migrations only in development
+if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("DefaultPolicy");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Add exception handling middleware
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+// Map health check endpoint
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 

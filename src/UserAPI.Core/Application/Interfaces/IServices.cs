@@ -61,6 +61,11 @@ public interface IUserService
     Task<IEnumerable<UserResponseDto>> GetAllAsync();
 
     /// <summary>
+    /// Get users with pagination
+    /// </summary>
+    Task<PaginatedResponseDto<UserResponseDto>> GetPaginatedAsync(PaginationQueryDto paginationQuery);
+
+    /// <summary>
     /// Update user
     /// </summary>
     Task<UserResponseDto?> UpdateAsync(Guid id, UpdateUserDto updateUserDto);

@@ -1,7 +1,5 @@
 namespace UserAPI.Core.Application.Services;
 
-using System.Security.Cryptography;
-using System.Text;
 using UserAPI.Core.Application.Interfaces;
 
 /// <summary>

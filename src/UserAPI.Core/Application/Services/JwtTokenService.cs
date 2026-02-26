@@ -12,9 +12,11 @@ using UserAPI.Core.Application.Interfaces;
 public class JwtTokenService : IJwtTokenService
 {
     private readonly string _secretKey;
+    private readonly string _issuer;
+    private readonly string _audience;
     private readonly int _expirationMinutes;
 
-    public JwtTokenService(string secretKey, int expirationMinutes = 60)
+    public JwtTokenService(string secretKey, string issuer = "UserAPI", string audience = "UserAPIClient", int expirationMinutes = 60)
     {
         if (string.IsNullOrWhiteSpace(secretKey))
             throw new ArgumentException("Secret key cannot be empty", nameof(secretKey));
@@ -23,6 +25,8 @@ public class JwtTokenService : IJwtTokenService
             throw new ArgumentException("Secret key must be at least 32 characters", nameof(secretKey));
 
         _secretKey = secretKey;
+        _issuer = issuer;
+        _audience = audience;
         _expirationMinutes = expirationMinutes;
     }
 
@@ -47,8 +51,8 @@ public class JwtTokenService : IJwtTokenService
         };
 
         var token = new JwtSecurityToken(
-            issuer: "UserAPI",
-            audience: "UserAPIClient",
+            issuer: _issuer,
+            audience: _audience,
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(_expirationMinutes),
             signingCredentials: credentials

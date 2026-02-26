@@ -1,18 +1,20 @@
 namespace UserAPI.Core.Domain.Entities;
 
 /// <summary>
-/// User entity representing a user in the system
+/// User entity representing a user in the system.
+/// Properties use private setters to enforce encapsulation;
+/// state changes must go through domain methods.
 /// </summary>
 public class User
 {
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-    public bool IsActive { get; set; }
+    public Guid Id { get; private set; }
+    public string Email { get; private set; } = string.Empty;
+    public string FirstName { get; private set; } = string.Empty;
+    public string LastName { get; private set; } = string.Empty;
+    public string PasswordHash { get; private set; } = string.Empty;
+    public DateTime CreatedAt { get; private set; }
+    public DateTime? UpdatedAt { get; private set; }
+    public bool IsActive { get; private set; }
 
     /// <summary>
     /// Constructor for creating a new user
@@ -31,7 +33,7 @@ public class User
     /// <summary>
     /// Parameterless constructor for EF Core
     /// </summary>
-    public User()
+    private User()
     {
     }
 

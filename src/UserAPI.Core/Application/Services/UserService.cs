@@ -3,6 +3,7 @@ namespace UserAPI.Core.Application.Services;
 using UserAPI.Core.Application.DTOs;
 using UserAPI.Core.Application.Interfaces;
 using UserAPI.Core.Domain.Entities;
+using UserAPI.Core.Domain.Exceptions;
 
 /// <summary>
 /// User service implementing SRP and DIP
@@ -30,7 +31,7 @@ public class UserService : IUserService
 
         var exists = await _userRepository.ExistsByEmailAsync(createUserDto.Email);
         if (exists)
-            throw new InvalidOperationException($"User with email {createUserDto.Email} already exists");
+            throw new DuplicateException("User", "email", createUserDto.Email);
 
         var hashedPassword = _passwordHasher.Hash(createUserDto.Password);
         var user = new User(
@@ -67,6 +68,25 @@ public class UserService : IUserService
     }
 
     /// <summary>
+    /// Get users with pagination
+    /// </summary>
+    public async Task<PaginatedResponseDto<UserResponseDto>> GetPaginatedAsync(PaginationQueryDto paginationQuery)
+    {
+        if (paginationQuery == null)
+            throw new ArgumentNullException(nameof(paginationQuery));
+
+        var (items, totalCount) = await _userRepository.GetPaginatedAsync(paginationQuery.Page, paginationQuery.PageSize);
+
+        return new PaginatedResponseDto<UserResponseDto>
+        {
+            Items = items.Select(MapToResponseDto),
+            TotalCount = totalCount,
+            Page = paginationQuery.Page,
+            PageSize = paginationQuery.PageSize
+        };
+    }
+
+    /// <summary>
     /// Update user
     /// </summary>
     public async Task<UserResponseDto?> UpdateAsync(Guid id, UpdateUserDto updateUserDto)
@@ -94,6 +114,10 @@ public class UserService : IUserService
     {
         if (id == Guid.Empty)
             throw new ArgumentException("User ID cannot be empty", nameof(id));
+
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null)
+            throw new NotFoundException("User", id);
 
         await _userRepository.DeleteAsync(id);
     }

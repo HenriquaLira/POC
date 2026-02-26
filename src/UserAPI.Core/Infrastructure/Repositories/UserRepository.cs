@@ -59,6 +59,20 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> ExistsByEmailAsync(string email)
     {
-        return await _context.Users.AnyAsync(u => u.Email == email && u.IsActive);
+        // Check all users (including inactive) to prevent unique index violations
+        return await _context.Users.AnyAsync(u => u.Email == email);
+    }
+
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetPaginatedAsync(int page, int pageSize)
+    {
+        var query = _context.Users.Where(u => u.IsActive);
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
     }
 }
