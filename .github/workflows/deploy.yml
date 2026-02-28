@@ -1,4 +1,4 @@
-name: Deploy to Azure
+name: Deploy .NET 8 to Azure
 
 on:
   push:
@@ -8,16 +8,31 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     environment:
       name: ${{ github.ref_name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Login Azure
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release --output ./publish
+
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -25,18 +40,18 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
-      - name: Set environment variables
+      - name: Define App Name
         run: |
           if [ "${GITHUB_REF_NAME}" == "develop" ]; then
-            echo "APP_NAME=app-dev" >> $GITHUB_ENV
+            echo "APP_NAME=minhaapi-dev" >> $GITHUB_ENV
           elif [ "${GITHUB_REF_NAME}" == "homolog" ]; then
-            echo "APP_NAME=app-hml" >> $GITHUB_ENV
+            echo "APP_NAME=minhaapi-hml" >> $GITHUB_ENV
           else
-            echo "APP_NAME=app-prod" >> $GITHUB_ENV
+            echo "APP_NAME=minhaapi-prod" >> $GITHUB_ENV
           fi
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.APP_NAME }}
-          package: .
+          package: ./publish
