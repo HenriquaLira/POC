@@ -43,11 +43,11 @@ jobs:
       - name: Define App Name
         run: |
           if [ "${GITHUB_REF_NAME}" == "develop" ]; then
-            echo "APP_NAME=minhaapi-dev" >> $GITHUB_ENV
+            echo "APP_NAME=app-develop" >> $GITHUB_ENV
           elif [ "${GITHUB_REF_NAME}" == "homolog" ]; then
-            echo "APP_NAME=minhaapi-hml" >> $GITHUB_ENV
+            echo "APP_NAME=app-homolog" >> $GITHUB_ENV
           else
-            echo "APP_NAME=minhaapi-prod" >> $GITHUB_ENV
+            echo "APP_NAME=app-production" >> $GITHUB_ENV
           fi
 
       - name: Deploy to Azure Web App
